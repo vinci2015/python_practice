@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__author__ 'vinci'
+__author__ ='vinci'
 
 import asyncio,logging
 
@@ -18,7 +18,7 @@ async def create_pool(loop,**kw):
         port = kw.get('port',3306),
         user = kw['user'],
         password = kw['password'],
-        db = ke['db'],
+        db = kw['db'],
         charset = kw.get('charset','utf8'),
         autocommit = kw.get('autocommit',True),
         maxsize = kw.get('maxsize',10),

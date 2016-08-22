@@ -1,3 +1,4 @@
+
 import asyncio,os,inspect,logging,functools 
 from urllib import parse
 from aiohttp import web
@@ -141,7 +142,7 @@ def add_static(app):
     app.router.add_static('/static/', path)
     logging.info('add static %s => %s'%('/static/',path))
 
-def add_route(app,fn):
+def add_routes(app,fn):
     method = getattr(fn, '__method__',None)
     path = getattr(fn, '__route__',None)
     if path is None or method is None:
