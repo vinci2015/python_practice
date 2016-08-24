@@ -7,9 +7,11 @@ __author__ = 'vinci'
 async web application
 '''
 
-import logging; logging.basicConfig(level = logging.INFO)
+import logging;
 
-import asyncio,os,json,time
+logging.basicConfig(level=logging.INFO)
+
+import asyncio, os, json, time
 from datetime import datetime
 
 from aiohttp import web
@@ -18,15 +20,16 @@ from jinja2 import Environment, FileSystemLoader
 import orm
 from coreweb import add_routes, add_static
 
+
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
     options = dict(
-        autoescape = kw.get('autoescape', True),
-        block_start_string = kw.get('block_start_string', '{%'),
-        block_end_string = kw.get('block_end_string', '%}'),
-        variable_start_string = kw.get('variable_start_string', '{{'),
-        variable_end_string = kw.get('variable_end_string', '}}'),
-        auto_reload = kw.get('auto_reload', True)
+        autoescape=kw.get('autoescape', True),
+        block_start_string=kw.get('block_start_string', '{%'),
+        block_end_string=kw.get('block_end_string', '%}'),
+        variable_start_string=kw.get('variable_start_string', '{{'),
+        variable_end_string=kw.get('variable_end_string', '}}'),
+        auto_reload=kw.get('auto_reload', True)
     )
     path = kw.get('path', None)
     if path is None:
@@ -44,8 +47,10 @@ async def logger_factory(app, handler):
     async def logger(request):
         logging.info('Request: %s %s' % (request.method, request.path))
         # await asyncio.sleep(0.3)
-        return (await handler(request))
+        return await handler(request)
+
     return logger
+
 
 async def data_factory(app, handler):
     async def parse_data(request):
@@ -56,8 +61,10 @@ async def data_factory(app, handler):
             elif request.content_type.startswith('application/x-www-form-urlencoded'):
                 request.__data__ = await request.post()
                 logging.info('request form: %s' % str(request.__data__))
-        return (await handler(request))
+        return await handler(request)
+
     return parse_data
+
 
 async def response_factory(app, handler):
     async def response(request):
@@ -78,24 +85,27 @@ async def response_factory(app, handler):
         if isinstance(r, dict):
             template = r.get('__template__')
             if template is None:
-                resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode('utf-8'))
+                resp = web.Response(
+                    body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode('utf-8'))
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp
-        if isinstance(r, int) and r >= 100 and r < 600:
+        if isinstance(r, int) and 100 <= r < 600:
             return web.Response(r)
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
-            if isinstance(t, int) and t >= 100 and t < 600:
+            if isinstance(t, int) and 100 <= t < 600:
                 return web.Response(t, str(m))
         # default:
         resp = web.Response(body=str(r).encode('utf-8'))
         resp.content_type = 'text/plain;charset=utf-8'
         return resp
+
     return response
+
 
 def datetime_filter(t):
     delta = int(time.time() - t)
@@ -110,8 +120,9 @@ def datetime_filter(t):
     dt = datetime.fromtimestamp(t)
     return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
+
 async def init(loop):
-    await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='admin', password='123456', db='world')
+    await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='admin', password='123456', db='home')
     app = web.Application(loop=loop, middlewares=[
         logger_factory, response_factory
     ])
