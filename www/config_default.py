@@ -8,6 +8,6 @@ configs = {
         'db': 'home'
     },
     'session': {
-        'secret': 'Awesome'
+        'secret': 'ImageYourFuture'
     }
 }
