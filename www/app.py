@@ -51,7 +51,7 @@ async def logger_factory(app, handler):
         return await handler(request)
 
     return logger
-# 解析cookie，获取当前user信息设置给request
+# 解析cookie，获取当前user信息设置给request,对url'/manage/'进行拦截，判断用户是否为admin
 async def auth_factory(app,handler):
     async def auth(request):
         logging.info('chekc user:%s %s' % (request.method,request.path))
@@ -125,6 +125,7 @@ async def response_factory(app, handler):
 
 def datetime_filter(t):
     delta = int(time.time() - t)
+    print(time.time()-t,delta)
     if delta < 60:
         return u'1分钟前'
     if delta < 3600:

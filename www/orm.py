@@ -9,7 +9,7 @@ import aiomysql
 
 
 def log(sql, args=()):
-    logging.info('SQL: %s %s'.replace('(','').replace(')','') % (sql,args))
+    logging.info('SQL:  args: %s,%s'.replace('(','').replace(')','') % (sql,args))
 
 
 async def create_pool(loop, **kw):
@@ -28,6 +28,9 @@ async def create_pool(loop, **kw):
         loop=loop
     )
 
+async def create_model_table(model):
+    logging.info('create tables %s'% model.name)
+
 
 async def select(sql, args, size=None):
     log(sql, args)
@@ -44,7 +47,7 @@ async def select(sql, args, size=None):
 
 
 async def execute(sql, args, autocommit=True):
-    log(sql)
+    log(sql,args)
     async with __pool.get() as conn:
         if not autocommit:
             await conn.begin()
@@ -78,7 +81,6 @@ class Field(object):
     def __str__(self):
         return '<%s,%s,%s>' % (self.__class__.__name__, self.column_type, self.name)
 
-
 class StringField(Field):
     def __init__(self, name=None, primary_key=False, default=None, ddl='varchar(100)'):
         super().__init__(name, ddl, primary_key, default)
@@ -86,7 +88,7 @@ class StringField(Field):
 
 class BooleanField(Field):
     def __init__(self, name=None, default=False):
-        super().__init__(name, 'boolean', False, default)
+        super().__init__(name, 'tinyint', False, default)
 
 
 class IntegerField(Field):
@@ -95,7 +97,7 @@ class IntegerField(Field):
 
 
 class FloatField(Field):
-    def __init__(self, name=None, primary_key=False, default=0.0):
+    def __init__(self, name=None, primary_key=False, default=0):
         super().__init__(name, 'real', primary_key, default)
 
 
@@ -113,6 +115,8 @@ class ModelMetaclass(type):
         mappings = dict()
         fields = []
         primaryKey = None
+        attrs['__create__'] = 'create table if not exists %s ( %s)' % (
+            '\`'+tableName+'\`', create_column_def(attrs.items()))
         for k, v in attrs.items():
             if isinstance(v, Field):
                 logging.info('found mapping: %s ==> %s' % (k, v))
@@ -139,7 +143,24 @@ class ModelMetaclass(type):
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (
         tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
+        print(attrs['__create__'])
         return type.__new__(cls, name, bases, attrs)
+
+
+def create_column_def(fields):
+    coloumn_def = str(encoding='utf-8')
+    pk = str(encoding='utf-8')
+    for k, v in fields:
+        if isinstance(v, Field):
+            # print(k, v)
+            coloumn_def += '\`'+k+'\` '
+            if v.primary_key:
+                pk = 'primary key (\`' + k + '\`)'
+                coloumn_def += v.column_type+' not null,'
+            else:
+                coloumn_def += v.column_type + ' null,'
+    # print(coloumn_def+pk)
+    return coloumn_def+pk
 
 
 class Model(dict, metaclass=ModelMetaclass):
@@ -198,7 +219,7 @@ class Model(dict, metaclass=ModelMetaclass):
 
     @classmethod
     async def findNumber(cls, selectField, where=None, args=None):
-        ' find number by select and where. '
+        """ find number by select and where. """
         sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
         if where:
             sql.append('where')
@@ -215,6 +236,10 @@ class Model(dict, metaclass=ModelMetaclass):
         if len(rs) == 0:
             return None
         return cls(**rs[0])
+
+    @classmethod
+    def create(cls):
+        print(cls.__create__)
 
     async def save(self):
         args = list(map(self.getValueOrDefault, self.__fields__))
@@ -235,3 +260,4 @@ class Model(dict, metaclass=ModelMetaclass):
         rows = await execute(self.__delete__, args)
         if rows != 1:
             logging.warn('failed to remove by primary key: affected rows: %s' % rows)
+
