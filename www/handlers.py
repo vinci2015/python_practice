@@ -180,7 +180,7 @@ async def authenticate(*, email, passwd):
 
 @get('/manage/')
 def manage():
-    return 'redirect:/manage/comments'
+    return 'redirect:/manage/users'
 
 
 @get('/manage/blogs/create')

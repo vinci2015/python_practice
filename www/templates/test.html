@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<ol><li><code>yield</code> 修饰的变量所在的函数在调用时不执行任何代码，只有在调用其<code>send()</code>时才执行。且该generator必须通过<code>send(None)</code>来启动</li><li>关于<code>aiohttp</code>的<code>web</code>包，在调用
+<code>python
+app = web.Application(loop=loop, middlewares=[logger_factory, response_factory])
+</code>
+其中的middlewares中的项为函数，接收app,handler为参数，返回一个以request为参数的函数，例如：
+<code>
+async def logger_factory(app, handler):
+async def logger(request):
+    logging.info(&#39;Request: %s %s&#39; % (request.method, request.path))
+    # await asyncio.sleep(0.3)
+    return (await handler(request))
+return logger
+</code></li></ol>
+</body>
+</html>

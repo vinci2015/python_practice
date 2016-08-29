@@ -18,6 +18,7 @@ from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 from config import configs
 import orm
+import models
 from coreweb import add_routes, add_static
 from handlers import cookie2user,COOKIE_NAME
 
@@ -94,6 +95,8 @@ async def response_factory(app, handler):
         if isinstance(r, str):
             if r.startswith('redirect:'):
                 return web.HTTPFound(r[9:])
+                #request.path = r[9:]
+                #await handler(request)
             resp = web.Response(body=r.encode('utf-8'))
             resp.content_type = 'text/html;charset=utf-8'
             return resp
@@ -125,7 +128,6 @@ async def response_factory(app, handler):
 
 def datetime_filter(t):
     delta = int(time.time() - t)
-    print(time.time()-t,delta)
     if delta < 60:
         return u'1分钟前'
     if delta < 3600:
@@ -139,8 +141,10 @@ def datetime_filter(t):
 
 
 async def init(loop):
-    print('configs :%s'%json.dumps(configs).encode('utf-8'))
+    logging.info('init()')
     await orm.create_pool(loop=loop, **configs.db)
+    await models.create_table()
+    logging.info('before applicaiton ')
     app = web.Application(loop=loop, middlewares=[
         logger_factory, auth_factory, response_factory
     ])

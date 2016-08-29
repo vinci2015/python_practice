@@ -28,8 +28,14 @@ async def create_pool(loop, **kw):
         loop=loop
     )
 
-async def create_model_table(model):
-    logging.info('create tables %s'% model.name)
+
+async def create_model_table(tablename, attrs):
+    logging.info('create tables %s'% tablename)
+    create_table_sql = 'create table if not exists %s ( %s)' % (
+            '`'+tablename+'`', create_column_def(attrs.items()))
+    rows = await execute(create_table_sql)
+    if rows != 0:
+        logging.warn('failed to create table: rows: %s' % rows)
 
 
 async def select(sql, args, size=None):
@@ -53,7 +59,10 @@ async def execute(sql, args, autocommit=True):
             await conn.begin()
         try:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(sql.replace('?', '%s'), args)
+                if len(args) != 0:
+                    await cur.execute(sql.replace('?', '%s'), args)
+                else:
+                    await cur.execute(sql.replace('?', '%s'))
                 affected = cur.rowcount
             if not autocommit:
                 await conn.commit()
@@ -116,7 +125,7 @@ class ModelMetaclass(type):
         fields = []
         primaryKey = None
         attrs['__create__'] = 'create table if not exists %s ( %s)' % (
-            '\`'+tableName+'\`', create_column_def(attrs.items()))
+            '`' + tableName + '`', create_column_def(attrs.items()))
         for k, v in attrs.items():
             if isinstance(v, Field):
                 logging.info('found mapping: %s ==> %s' % (k, v))
@@ -143,7 +152,9 @@ class ModelMetaclass(type):
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (
         tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
+
         print(attrs['__create__'])
+
         return type.__new__(cls, name, bases, attrs)
 
 
@@ -153,9 +164,9 @@ def create_column_def(fields):
     for k, v in fields:
         if isinstance(v, Field):
             # print(k, v)
-            coloumn_def += '\`'+k+'\` '
+            coloumn_def += '`'+k+'` '
             if v.primary_key:
-                pk = 'primary key (\`' + k + '\`)'
+                pk = 'primary key (`' + k + '`)'
                 coloumn_def += v.column_type+' not null,'
             else:
                 coloumn_def += v.column_type + ' null,'
@@ -238,8 +249,9 @@ class Model(dict, metaclass=ModelMetaclass):
         return cls(**rs[0])
 
     @classmethod
-    def create(cls):
-        print(cls.__create__)
+    async def create(cls):
+        rows = await execute(cls.__create__,())
+        return rows
 
     async def save(self):
         args = list(map(self.getValueOrDefault, self.__fields__))
@@ -247,6 +259,7 @@ class Model(dict, metaclass=ModelMetaclass):
         rows = await execute(self.__insert__, args)
         if rows != 1:
             logging.warn('failed to insert record: affected rows: %s' % rows)
+        return rows
 
     async def update(self):
         args = list(map(self.getValue, self.__fields__))
