@@ -18,7 +18,9 @@ _COOKIE_KEY = configs.session.secret
 
 
 def check_admin(request):
+    print(request.__user__,request.__user__.admin)
     if request.__user__ is None or not request.__user__.admin:
+        print(request.__user__)
         raise APIPermissionError()
 
 
